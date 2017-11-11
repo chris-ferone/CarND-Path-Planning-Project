@@ -1,0 +1,4 @@
+build/
+src/.settings/language.settings.xml
+src/.project
+src/.cproject
