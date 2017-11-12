@@ -243,10 +243,9 @@ int main() {
 			////////////////////////////////////////////////////////////////////////////////////////////////////
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-			
 
 			int prev_size = previous_path_x.size();			
-		  
+			cout << "previous path size: " << prev_size << endl;
 			double ref_vel = 49.5;
 			double lane = 1;
 		  
@@ -256,7 +255,7 @@ int main() {
 			double ref_x = car_x;
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
-		  
+			//cout << "car yaw: " << car_yaw << endl;
 			// if previous size is almost empty, use the car as starting point	
 			if (prev_size < 2){
 				//Use two points that make the path tangent to the car
@@ -309,20 +308,16 @@ int main() {
 				double shift_y = ptsy[i] - ref_y;
 
 				ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
-				ptsy[i] = (shift_x * sin(0 - ref_yaw) - shift_y * cos(0 - ref_yaw));
+				ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
 			}
-			cout << "before" << endl;
+			
 			// create a spline
 			tk::spline spl;
-			cout << sizeof(ptsx) << endl;
-			cout << sizeof(ptsy) << endl;
-			//cout << "y size " << ptsy << endl;
+			
+			cout << "ptsx size: " << ptsx.size() << " ptsy size: " << ptsy.size() << endl;
+			
 			// set(x, y) points to the spline
 			spl.set_points(ptsx, ptsy);
-			cout << "2" << endl;
-			//Defining the actual (x,y) points we will use for the planner
-			//vector<double> next_x_vals;
-			//vector<double> next_y_vals;
 			
 			//Start with all of the previous path points from last time
 			for (int i = 0; i < previous_path_x.size(); i++)
@@ -337,7 +332,7 @@ int main() {
 			double target_dist = sqrt((target_x)*(target_x)+(target_y)*(target_y));
 			
 			double x_add_on = 0;
-			cout << "3" << endl;
+			
 			// Fill up the rest of our path planner after filling it with previous points, here we will always output 50 points
 			
 			for (int i = 1; i <= 50 - previous_path_x.size(); i++){
@@ -360,23 +355,7 @@ int main() {
 				next_x_vals.push_back(x_point);
 				next_y_vals.push_back(y_point);
 			}
-			cout << "4" << endl;
-			  /* double dist_inc = target_vel * 0.44704 *.02;
-			  vector<double> NewXY;
-			  
-			  double a = s(car_x);
-			  
-			  for(int i = 0; i < 50; i++)
-			  {   
-					
-				  double next_s = car_s + (i + 1) * dist_inc;
-				  double d = 6;
-				  NewXY = getXY(next_s, d, map_waypoints_s, map_waypoints_x, map_waypoints_y);	
-				  next_x_vals.push_back(NewXY[0]);
-				  next_y_vals.push_back(NewXY[1]);
-				  //pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
-				  //pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
-			  } */
+
 			//////////////////////////////////////////////////////////////////////////////////////		
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
