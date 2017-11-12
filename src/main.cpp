@@ -243,11 +243,46 @@ int main() {
 			////////////////////////////////////////////////////////////////////////////////////////////////////
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-
-			int prev_size = previous_path_x.size();			
 			
 			double ref_vel = 49.5;
 			double lane = 1;
+			int prev_size = previous_path_x.size();	
+			
+			// WHY??????
+			if (prev_size > 0 )
+			{
+				car_s = end_path_s;
+			}
+			
+			
+			// Go through sensor fusion list, see if any other cars are in our lane, and if they are close
+			
+			bool too_close = false;
+			
+			//find rev_v to use
+			for(int i = 0; i < sensor_fusion.size(); i++)
+			{
+				float d = sensor_fusion[i][6];
+				//check if any other cars are in my lane
+				if(d < (2+4*lane+2) && d > (2+4*lane-2))
+				{
+					// if a car is in my lane, find its velocity and position (in s)
+					double vx = sensor_fusion[i][3];
+					double vy = sensor_fusion[i][4];
+					double check_speed = sqrt(vx*vx+vy*vy);
+					double check_car_s = sensor_fusion[i][5];
+					
+					//if using previous points can project s value out
+					check_car_s += ((double)prev_size*.02*check_speed);
+					//if another car is in front of us and close to us, then take action (i.e. slow down or change lanes)
+					if((check_car_s > car_s) && ((check_car_s-car_s) < 30) )
+					{
+					too_close = true;
+					ref_vel = check_speed;
+					
+					}
+				}
+			}		
 		  
 			vector<double> ptsx;
 			vector<double> ptsy;
