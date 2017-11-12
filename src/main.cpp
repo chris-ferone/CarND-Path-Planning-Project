@@ -245,7 +245,7 @@ int main() {
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
 			int prev_size = previous_path_x.size();			
-			cout << "previous path size: " << prev_size << endl;
+			
 			double ref_vel = 49.5;
 			double lane = 1;
 		  
@@ -255,7 +255,7 @@ int main() {
 			double ref_x = car_x;
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
-			//cout << "car yaw: " << car_yaw << endl;
+			
 			// if previous size is almost empty, use the car as starting point	
 			if (prev_size < 2){
 				//Use two points that make the path tangent to the car
@@ -313,8 +313,6 @@ int main() {
 			
 			// create a spline
 			tk::spline spl;
-			
-			cout << "ptsx size: " << ptsx.size() << " ptsy size: " << ptsy.size() << endl;
 			
 			// set(x, y) points to the spline
 			spl.set_points(ptsx, ptsy);
