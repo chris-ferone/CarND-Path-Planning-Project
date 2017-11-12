@@ -197,9 +197,9 @@ int main() {
   	map_waypoints_dy.push_back(d_y);
   }
   
+  double ref_vel = 0;
   
-  
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &ref_vel](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -244,7 +244,7 @@ int main() {
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 			
-			double ref_vel = 49.5;
+			
 			double lane = 1;
 			int prev_size = previous_path_x.size();	
 			
@@ -278,11 +278,23 @@ int main() {
 					if((check_car_s > car_s) && ((check_car_s-car_s) < 30) )
 					{
 					too_close = true;
-					ref_vel = check_speed;
+					//ref_vel = check_speed;
 					
 					}
 				}
-			}		
+			}	
+
+			
+			if(too_close)
+			{
+				ref_vel -= .224;
+				cout << "decrease speed" << ref_vel << endl;
+			}
+			else if(ref_vel < 49.5)
+			{
+				ref_vel += .224;
+				cout << "increase speed" << ref_vel << endl;
+			}
 		  
 			vector<double> ptsx;
 			vector<double> ptsy;
