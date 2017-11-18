@@ -260,7 +260,7 @@ int main() {
 			
 			bool too_close = false;
 			
-			//find rev_v to use
+			//find ref_v to use
 			for(int i = 0; i < sensor_fusion.size(); i++)
 			{
 				float d = sensor_fusion[i][6];
@@ -300,7 +300,9 @@ int main() {
 				ref_vel += .224;
 				cout << "increase speed" << ref_vel << endl;
 			}
-		  
+			
+			//////// Define coarse trajectories waypoints BEGIN
+			
 			vector<double> ptsx;
 			vector<double> ptsy;
 		  
@@ -351,6 +353,8 @@ int main() {
 			ptsy.push_back(next_wp0[1]);
 			ptsy.push_back(next_wp1[1]);
 			ptsy.push_back(next_wp2[1]);
+			
+			
 		
 			for (int i =0; i < ptsx.size(); i++)
 			{
@@ -362,6 +366,8 @@ int main() {
 				ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
 				ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
 			}
+			
+			//Define coarse trajectory waypoints END, Fit waypoints to spline BEGIN
 			
 			// create a spline
 			tk::spline spl;
