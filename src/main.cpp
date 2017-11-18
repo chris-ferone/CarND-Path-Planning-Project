@@ -9,6 +9,7 @@
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
 #include "spline.h"
+#include "helperFunctions.h"
 
 using namespace std;
 
@@ -340,7 +341,13 @@ int main() {
 				ptsy.push_back(ref_y_prev);
 				ptsy.push_back(ref_y);
 			}
-		
+			
+			int current_lane = find_current_lane(car_d);
+			//cout << "current lane: " << current_lane << endl;
+			vector<int> feasible_lanes = get_feasible_lanes(current_lane);
+
+			
+			
 			//In Frenet add evenly 30m spaced points ahead of starting reference
 			vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 			vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
