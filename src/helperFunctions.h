@@ -20,7 +20,7 @@ vector<int> get_feasible_lanes(int current_lane)
 	{
 		states.erase(remove(states.begin(), states.end(), 0), states.end());
 	}
-	/*
+	
 	for (vector<int>::const_iterator i = states.begin(); i != states.end(); ++i)
 	{
 		cout << *i << ' ';

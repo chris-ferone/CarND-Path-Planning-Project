@@ -304,6 +304,9 @@ int main() {
 			
 			//////// Define coarse trajectories waypoints BEGIN
 			
+			vector<vector<double>> ptsX;
+			vector<vector<double>> ptsY;
+			
 			vector<double> ptsx;
 			vector<double> ptsy;
 		  
@@ -311,84 +314,100 @@ int main() {
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
 			
-			// if previous size is almost empty, use the car as starting point	
-			if (prev_size < 2){
-				//Use two points that make the path tangent to the car
-				double prev_car_x = car_x - cos(car_yaw);
-				double prev_car_y = car_y - sin(car_yaw);
-				
-				ptsx.push_back(prev_car_x);
-				ptsx.push_back(car_x);
-				
-				ptsy.push_back(prev_car_y);
-				ptsy.push_back(car_y);
-				
-				
-			}			
-			else {
-				//Redefine reference state as previous path end point
-				ref_x = previous_path_x[prev_size-1];
-				ref_y = previous_path_y[prev_size-1];
-				
-				double ref_x_prev = previous_path_x[prev_size-2];
-				double ref_y_prev = previous_path_y[prev_size-2];
-				ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
-				
-				//Use two points that make the path tangent to the previous path's end point
-				ptsx.push_back(ref_x_prev);
-				ptsx.push_back(ref_x);
-				
-				ptsy.push_back(ref_y_prev);
-				ptsy.push_back(ref_y);
-			}
-			
 			int current_lane = find_current_lane(car_d);
-			//cout << "current lane: " << current_lane << endl;
+			cout << "current lane: " << current_lane << endl;
 			vector<int> feasible_lanes = get_feasible_lanes(current_lane);
-
 			
+			for (int j = 0; j < feasible_lanes.size(); j++)
+			{
+				ptsx.clear();
+				ptsy.clear();
+				// if previous size is almost empty, use the car as starting point	
+				//cout << "1" << endl;
+				if (prev_size < 2){
+					//Use two points that make the path tangent to the car
+					cout << "2" << endl;
+					double prev_car_x = car_x - cos(car_yaw);
+					double prev_car_y = car_y - sin(car_yaw);
+					
+					ptsx.push_back(prev_car_x);
+					//cout << "3" << endl;
+					ptsx.push_back(car_x);
+					
+					ptsy.push_back(prev_car_y);
+					ptsy.push_back(car_y);
+				}			
+				else {
+					//cout << "3" << endl;
+					//Redefine reference state as previous path end point
+					ref_x = previous_path_x[prev_size-1];
+					ref_y = previous_path_y[prev_size-1];
+					
+					double ref_x_prev = previous_path_x[prev_size-2];
+					double ref_y_prev = previous_path_y[prev_size-2];
+					ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
+					
+					//Use two points that make the path tangent to the previous path's end point
+					ptsx.push_back(ref_x_prev);
+					ptsx.push_back(ref_x);
+					
+					ptsy.push_back(ref_y_prev);
+					ptsy.push_back(ref_y);
+				}			
+				//cout << "4" << endl;
+				//In Frenet add evenly 30m spaced points ahead of starting reference
+				vector<double> next_wp0 = getXY(car_s+30, (2+4*feasible_lanes[j]), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+				vector<double> next_wp1 = getXY(car_s+60, (2+4*feasible_lanes[j]), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+				vector<double> next_wp2 = getXY(car_s+90, (2+4*feasible_lanes[j]), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+				
+				ptsx.push_back(next_wp0[0]);
+				ptsx.push_back(next_wp1[0]);
+				ptsx.push_back(next_wp2[0]);
+				
+				ptsy.push_back(next_wp0[1]);
+				ptsy.push_back(next_wp1[1]);
+				ptsy.push_back(next_wp2[1]);
+				
+				ptsX.push_back(ptsx);
+				ptsY.push_back(ptsy);
+			}
+			//cout << "5" << endl;
+			//cout << ptsX.size() << endl;
+			//cout << ptsX[0].size() << endl;
+			//cout << ptsX[1].size() << endl;
+			//cout << ptsX[2].size() << endl;
+			//cout << ptsX[2][1] << endl;
+			vector<double> ptsxx = ptsX[lane];
+			vector<double> ptsyy = ptsY[lane];
+			//cout << "6" << endl;
+			//cout << ptsxx.size() << " " << ptsyy.size() << endl;
 			
-			//In Frenet add evenly 30m spaced points ahead of starting reference
-			vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-			vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-			vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-			
-			ptsx.push_back(next_wp0[0]);
-			ptsx.push_back(next_wp1[0]);
-			ptsx.push_back(next_wp2[0]);
-			
-			ptsy.push_back(next_wp0[1]);
-			ptsy.push_back(next_wp1[1]);
-			ptsy.push_back(next_wp2[1]);
-			
-			
-		
 			for (int i =0; i < ptsx.size(); i++)
 			{
 				//shift car refrence angle to 0 degrees\
 				// transformation to local car's coordinate system
-				double shift_x = ptsx[i] - ref_x;
-				double shift_y = ptsy[i] - ref_y;
+				double shift_x = ptsxx[i] - ref_x;
+				double shift_y = ptsyy[i] - ref_y;
 
-				ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
-				ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
+				ptsxx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
+				ptsyy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
 			}
-			
+			//cout << "7" << endl;
 			//Define coarse trajectory waypoints END, Fit waypoints to spline BEGIN
 			
 			// create a spline
 			tk::spline spl;
-			
+			//cout << "7.1" << endl;
 			// set(x, y) points to the spline
-			spl.set_points(ptsx, ptsy);
-			
+			spl.set_points(ptsxx, ptsyy);
+			//cout << "8" << endl;
 			//Start with all of the previous path points from last time
 			for (int i = 0; i < previous_path_x.size(); i++)
 			{
 				next_x_vals.push_back(previous_path_x[i]);
 				next_y_vals.push_back(previous_path_y[i]);
 			}
-		
+			//cout << "9" << endl;
 			// Calculate how to break up spline points so that we travel at our desired reference velocity
 			double target_x = 30.0;
 			double target_y = spl(target_x);
