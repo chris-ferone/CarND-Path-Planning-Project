@@ -200,8 +200,10 @@ int main() {
   
   double ref_vel = 0;
   double lane = 1;
+  bool uptospeed = false;
+  double timer = 0;
   
-  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &ref_vel, &lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy, &ref_vel, &lane, &uptospeed, &timer](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -260,7 +262,7 @@ int main() {
 			// Go through sensor fusion list, see if any other cars are in our lane, and if they are close
 			
 			bool too_close = false;
-			vector<unsigned int> buffer_cost = {0, 0, 0};
+			vector<int> buffer_cost = {0, 0, 0};
 			int current_lane = find_current_lane(car_d);
 			//cout << "current lane: " << current_lane << endl;
 			vector<int> feasible_lanes = get_feasible_lanes(current_lane);
@@ -308,20 +310,22 @@ int main() {
 			//cout << "too4 close: " << too_close << endl;
 			
 			unsigned int ineff_cost = inefficency_cost(car_speed, 49.5);
-			buffer_cost[current_lane] = ineff_cost;
+			buffer_cost[lane] = ineff_cost;
+			
+			
 			
 			cout << "Buffer Cost: ";
-			for (vector<int>::iterator fl_it = feasible_lanes.begin(); fl_it != feasible_lanes.end(); fl_it++)
+			for (vector<int>::iterator fl_it = buffer_cost.begin(); fl_it != buffer_cost.end(); fl_it++)
 				{			
-				cout << setw(10) << buffer_cost[*fl_it]  << " | ";
+				cout << setw(10) << *fl_it  << " | ";
 				}
-			cout << endl;	
+			//cout << endl;	
 				
 			
 
  			if(ref_vel > target_speed)
 			{
-				ref_vel -= .1;
+				ref_vel -= .224;
 				;
 				//cout << ref_vel << endl;
 				//cout << "decrease speed" << ref_vel << endl;
@@ -332,10 +336,35 @@ int main() {
 				//cout << "increase speed" << ref_vel << endl;
 			} 
 			
+			if (buffer_cost[lane] < 1)
+			{
+				uptospeed = true;
+			}
+			// find lowest cost lane
+			
+			timer = timer + .02;
+			
+			if (uptospeed) //don't change lanes when the vehicle is starting up from a stop at the begining of simulation
+			{
+				
+				int minlane = min_element(buffer_cost.begin(), buffer_cost.end()) - buffer_cost.begin();
+				// The new lane must cost signifncatly less, and at least some time must have passed since last lane change (to avoid unnecessary lanes changes). 
+				if ( (find(feasible_lanes.begin(), feasible_lanes.end(), minlane) != feasible_lanes.end()) && (buffer_cost[lane] - buffer_cost[minlane] > 20) && timer > 3)
+				{
+					cout << "LANE CHANGE!   minlane: " << minlane << " current lane: " << lane << " buffer_cost[minlane]: " << buffer_cost[minlane] << " buffer_cost[lane]: "<< buffer_cost[lane] << " diff: " << buffer_cost[lane] - buffer_cost[minlane] << endl;
+					lane = minlane;
+					timer = 0; // reset timer 
+					
+				}
+			}
+			
+			cout << " lane: " << lane << " ref_vel: " << ref_vel  << endl;
+			
+			
 			//////// Define coarse trajectories waypoints BEGIN
 			
-			vector<vector<double>> ptsX;
-			vector<vector<double>> ptsY;
+			//vector<vector<double>> ptsX;
+			//vector<vector<double>> ptsY;
 			
 			vector<double> ptsx;
 			vector<double> ptsy;
@@ -347,67 +376,66 @@ int main() {
 
 			
 			
-			for (int j = 0; j < feasible_lanes.size(); j++)
-			{
-				ptsx.clear();
-				ptsy.clear();
-				// if previous size is almost empty, use the car as starting point	
-				//cout << "1" << endl;
-				if (prev_size < 2){
-					//Use two points that make the path tangent to the car
-					cout << "2" << endl;
-					double prev_car_x = car_x - cos(car_yaw);
-					double prev_car_y = car_y - sin(car_yaw);
-					
-					ptsx.push_back(prev_car_x);
-					//cout << "3" << endl;
-					ptsx.push_back(car_x);
-					
-					ptsy.push_back(prev_car_y);
-					ptsy.push_back(car_y);
-				}			
-				else {
-					//cout << "3" << endl;
-					//Redefine reference state as previous path end point
-					ref_x = previous_path_x[prev_size-1];
-					ref_y = previous_path_y[prev_size-1];
-					
-					double ref_x_prev = previous_path_x[prev_size-2];
-					double ref_y_prev = previous_path_y[prev_size-2];
-					ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
-					
-					//Use two points that make the path tangent to the previous path's end point
-					ptsx.push_back(ref_x_prev);
-					ptsx.push_back(ref_x);
-					
-					ptsy.push_back(ref_y_prev);
-					ptsy.push_back(ref_y);
-				}			
-				//cout << "4" << endl;
-				//In Frenet add evenly 30m spaced points ahead of starting reference
-				vector<double> next_wp0 = getXY(car_s+30, (2+4*feasible_lanes[j]), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-				vector<double> next_wp1 = getXY(car_s+60, (2+4*feasible_lanes[j]), map_waypoints_s, map_waypoints_x, map_waypoints_y);
-				vector<double> next_wp2 = getXY(car_s+90, (2+4*feasible_lanes[j]), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			
+			ptsx.clear();
+			ptsy.clear();
+			// if previous size is almost empty, use the car as starting point	
+			//cout << "1" << endl;
+			if (prev_size < 2){
+				//Use two points that make the path tangent to the car
+				cout << "2" << endl;
+				double prev_car_x = car_x - cos(car_yaw);
+				double prev_car_y = car_y - sin(car_yaw);
 				
-				ptsx.push_back(next_wp0[0]);
-				ptsx.push_back(next_wp1[0]);
-				ptsx.push_back(next_wp2[0]);
+				ptsx.push_back(prev_car_x);
+				//cout << "3" << endl;
+				ptsx.push_back(car_x);
 				
-				ptsy.push_back(next_wp0[1]);
-				ptsy.push_back(next_wp1[1]);
-				ptsy.push_back(next_wp2[1]);
+				ptsy.push_back(prev_car_y);
+				ptsy.push_back(car_y);
+			}			
+			else {
+				//cout << "3" << endl;
+				//Redefine reference state as previous path end point
+				ref_x = previous_path_x[prev_size-1];
+				ref_y = previous_path_y[prev_size-1];
 				
-				ptsX.push_back(ptsx);
-				ptsY.push_back(ptsy);
-			}
+				double ref_x_prev = previous_path_x[prev_size-2];
+				double ref_y_prev = previous_path_y[prev_size-2];
+				ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
+				
+				//Use two points that make the path tangent to the previous path's end point
+				ptsx.push_back(ref_x_prev);
+				ptsx.push_back(ref_x);
+				
+				ptsy.push_back(ref_y_prev);
+				ptsy.push_back(ref_y);
+			}			
+			//cout << "4" << endl;
+			//In Frenet add evenly 30m spaced points ahead of starting reference
+			vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			vector<double> next_wp2 = getXY(car_s+90, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
+			
+			ptsx.push_back(next_wp0[0]);
+			ptsx.push_back(next_wp1[0]);
+			ptsx.push_back(next_wp2[0]);
+			
+			ptsy.push_back(next_wp0[1]);
+			ptsy.push_back(next_wp1[1]);
+			ptsy.push_back(next_wp2[1]);
+			
+			//ptsX.push_back(ptsx);
+			//ptsY.push_back(ptsy);
+			
 			//cout << "5" << endl;
 			//cout << ptsX.size() << endl;
 			//cout << ptsX[0].size() << endl;
 			//cout << ptsX[1].size() << endl;
 			//cout << ptsX[2].size() << endl;
 			//cout << ptsX[2][1] << endl;
-			vector<double> ptsxx = ptsX[lane];
-			vector<double> ptsyy = ptsY[lane];
+			//vector<double> ptsxx = ptsX;
+			//vector<double> ptsyy = ptsY;
 			//cout << "6" << endl;
 			//cout << ptsxx.size() << " " << ptsyy.size() << endl;
 			
@@ -415,11 +443,11 @@ int main() {
 			{
 				//shift car refrence angle to 0 degrees\
 				// transformation to local car's coordinate system
-				double shift_x = ptsxx[i] - ref_x;
-				double shift_y = ptsyy[i] - ref_y;
+				double shift_x = ptsx[i] - ref_x;
+				double shift_y = ptsy[i] - ref_y;
 
-				ptsxx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
-				ptsyy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
+				ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
+				ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
 			}
 			//cout << "7" << endl;
 			//Define coarse trajectory waypoints END, Fit waypoints to spline BEGIN
@@ -428,7 +456,7 @@ int main() {
 			tk::spline spl;
 			//cout << "7.1" << endl;
 			// set(x, y) points to the spline
-			spl.set_points(ptsxx, ptsyy);
+			spl.set_points(ptsx, ptsy);
 			//cout << "8" << endl;
 			//Start with all of the previous path points from last time
 			for (int i = 0; i < previous_path_x.size(); i++)
