@@ -260,47 +260,77 @@ int main() {
 			// Go through sensor fusion list, see if any other cars are in our lane, and if they are close
 			
 			bool too_close = false;
+			vector<unsigned int> buffer_cost = {0, 0, 0};
+			int current_lane = find_current_lane(car_d);
+			//cout << "current lane: " << current_lane << endl;
+			vector<int> feasible_lanes = get_feasible_lanes(current_lane);
+			double follow_speed = 0;
+			double target_speed = 49.5;
 			
-			//find ref_v to use
 			for(int i = 0; i < sensor_fusion.size(); i++)
 			{
 				float d = sensor_fusion[i][6];
-				//check if any other cars are in my lane
-				if(d < (2+4*lane+2) && d > (2+4*lane-2))
+			//check if any other cars are in my lane or in lane(s) I may switch to (i.e. feasible lanes)
+				for (vector<int>::iterator fl_it = feasible_lanes.begin(); fl_it != feasible_lanes.end(); fl_it++)
 				{
-					// if a car is in my lane, find its velocity and position (in s)
-					double vx = sensor_fusion[i][3];
-					double vy = sensor_fusion[i][4];
-					double check_speed = sqrt(vx*vx+vy*vy);
-					double check_car_s = sensor_fusion[i][5];
-					
-					//if using previous points can project s value out
-					check_car_s += ((double)prev_size*.02*check_speed);
-					//if another car is in front of us and close to us, then take action (i.e. slow down or change lanes)
-					if((check_car_s > car_s) && ((check_car_s-car_s) < 30) )
+					if(d < (2+4* *fl_it+2) && d > (2+4* *fl_it-2))
 					{
-					too_close = true;
-					//ref_vel = check_speed;
-					if (lane > 0)
-					{
-						lane = 0;
+						// if a car is in my lane or a lane I might switch to, find its velocity and position (in s)
+						double vx = sensor_fusion[i][3];
+						double vy = sensor_fusion[i][4];
+						double check_speed = sqrt(vx*vx+vy*vy);
+						double check_car_s = sensor_fusion[i][5];
+						
+						//if using previous points can project s value out
+						check_car_s += ((double)prev_size*.02*check_speed);
+						double buffer = check_car_s-car_s;
+						//if another car is in front of us and close to us, then take action (i.e. slow down or change lanes)
+						//cout << (*fl_it == current_lane) <<  (check_car_s > car_s) << (buffer < 30) << (buffer > 0) << endl;
+						if((*fl_it == current_lane) && (check_car_s > car_s) && (buffer < 30) )
+						{
+							//too_close = true;
+							target_speed = 2.24*check_speed;
+							//cout << "target speed: " << target_speed << " ID: " << sensor_fusion[i][0] << endl;
+							//cout << "too close: " << too_close <<  " current lane: " << current_lane << " fl_it " << *fl_it << endl;
+						}
+						if(*fl_it != current_lane && fabs(buffer) < 30) // if another car is in front or behind us in another lane we are considering moving into, calculate buffer cost
+						{
+							//Calculate buffer cost for that lane
+							// the smaller the distance (i.e. buffer), the larger the cost should be
+							buffer_cost[*fl_it] =  buffer_cost[*fl_it] + .1*pow((fabs(buffer)-30),2);
+						}
+						//cout << "too1 close: " << too_close << endl;
 					}
-					
-					}
+					//cout << "too2 close: " << too_close << endl;
 				}
+				//cout << "too3 close: " << too_close << endl;
 			}	
-
+			//cout << "too4 close: " << too_close << endl;
 			
-			if(too_close)
+			unsigned int ineff_cost = inefficency_cost(car_speed, 49.5);
+			buffer_cost[current_lane] = ineff_cost;
+			
+			cout << "Buffer Cost: ";
+			for (vector<int>::iterator fl_it = feasible_lanes.begin(); fl_it != feasible_lanes.end(); fl_it++)
+				{			
+				cout << setw(10) << buffer_cost[*fl_it]  << " | ";
+				}
+			cout << endl;	
+				
+			
+
+ 			if(ref_vel > target_speed)
 			{
-				ref_vel -= .224;
-				cout << "decrease speed" << ref_vel << endl;
+				ref_vel -= .1;
+				;
+				//cout << ref_vel << endl;
+				//cout << "decrease speed" << ref_vel << endl;
 			}
-			else if(ref_vel < 49.5)
+			else if(ref_vel < target_speed)
 			{
 				ref_vel += .224;
-				cout << "increase speed" << ref_vel << endl;
-			}
+				//cout << "increase speed" << ref_vel << endl;
+			} 
 			
 			//////// Define coarse trajectories waypoints BEGIN
 			
@@ -314,9 +344,8 @@ int main() {
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
 			
-			int current_lane = find_current_lane(car_d);
-			cout << "current lane: " << current_lane << endl;
-			vector<int> feasible_lanes = get_feasible_lanes(current_lane);
+
+			
 			
 			for (int j = 0; j < feasible_lanes.size(); j++)
 			{
