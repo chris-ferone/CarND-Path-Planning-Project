@@ -1,13 +1,32 @@
-There is a reflection on how to generate paths. The code model for generating paths is described in detail. 
 
-The code contained within the repository generates a trajectory for the vehicle to follow. The trajectory is generated according to the following steps:
-	1. A set of feasible lanes are determined. Feasible lanes are lanes the vehicle might currently occupy or lanes the vehicle might want to move into. For example, 
-	if the vehicle is the middle lanes, all lanes belong to the set of the feasible lanes. if the vehile is in the far right lane, then it can only stay in that lane 
-	or shift into the middle lane. Thus, the feasible lanes would be the middle and far right lanes only. 
-	2. Next, we iterate over the list of vehicles reported by the sensor fusion module that are in any feasible lanes. If a vehicle is in the ego vehicle lane, 
-	ahead of the ego vehicle, and within a certain distance of the ego vehicle, then that vehicle's speed becomes the ego vehicle's speed target. This prevents the 
-	ego vehicle from rear-ending this vehicle. 
-	3. If any other vehicles are in feasible lanes, but not in the current ego vehicle lane, then their buffer cost is caclulated. Buffer cost is a cost assosicated with
-	moving into another lane. If another vehicle is in close longitudinal (s) proximty to the ego vehicle, then its cost will be high. As the vehicle moves farther in front
-	or behind of the ego vehicle, its cost decays to zero, represeting a clear lane to shift into. 
+The code contained within this repository generates a trajectory for the ego vehicle to follow. The trajectory is generated according to the following steps:
+	1. First, a target lane and speed must be determined.
+		1. A set of feasible lanes are determined. Feasible lanes are lanes the vehicle might currently occupy or lanes the vehicle might want to move into. For example, 
+		if the ego vehicle is the middle lane, all lanes belong to the set of the feasible lanes. If the ego vehile is in the far right lane, then it can only stay in that lane 
+		or shift into the middle lane. Thus, the feasible lanes would be the middle and far right lanes only. 
+		2. Next, we iterate over the list of vehicles reported by the sensor fusion module that are in any feasible lanes. If a vehicle is in the ego vehicle lane, 
+		ahead of the ego vehicle, and within a certain distance of the ego vehicle, then the ego vehicle using that vehicle's speed as its speed target. This prevents the 
+		ego vehicle from rear-ending this vehicle. 
+		3. If any other vehicles are in feasible lanes, but not in the current ego vehicle lane, then their buffer cost is caclulated. Buffer cost is a cost assosicated with
+		moving into another lane. If another vehicle is in close longitudinal (s) proximty to the ego vehicle, then its cost will be high. As the vehicle moves farther in front
+		or behind of the ego vehicle, its cost decays to zero, represeting a clear lane to shift into. 
+		4. The cost of remaining in the current lane, labelled "inefficiency cost" in the code, is calculated. If the current speed of the ego vehicle is equal to the goal 
+		speed (50mph), then inefficiency cost is zero. As the ego vehicle speed declines, the cost increases. The ego vehicle speed will decline when another slower moving 
+		vehicle is ahead of it. 
+		5. Each feasible lane has an associated cost. The current lane has an inefficiency cost and the other feasible lanes have buffer costs. The lane with the minimum cost is 
+		found and this become the target lane. The target speed is either 50mph of the speed of the vehicle in front of the ego vehicle. Now that a speed and lane target are known, 
+		the trajectory can be generated. Note that the target lane and speed are contiually changing as the cost of each lane changes based on traffic occupancy. 
+	2. Second, a coarse set of sparesely spaced way points must be determined. 
+		1. Starting waypoints: if, in the last execution cycle, all trajorecty points were realized, then the starting waypoint is the current vehicle position. If some points from 
+		previous trajectory were not used, then the last unused previous trajectory point becomes the starting waypoint. This helps ensure a smooth transition from one execition
+		cycle to the next. 
+		2. End waypoints: The end waypoints are simply dictated by the goal (i.e. target) lane. 
+	3. Third, the waypoints are fitted to a spline. 
+		1. The waypoints are tranformed into local coordinates to simplify the math. 
+		2. Unused spline points from the previous execution cycle are first added to the trajactory. 
+		3. The rest of the spline points are caclulated
+			1. A single point 30 meters ahead of the vehicle along its x axis is input into the spline function to find the first trajectory point (x,y).
+			2. The x axis values are broken up into chunks such that the vehicle will reach the desired speed targets
+			3. These additional x values are fed back into the spline function to generate more trajectory points. 
+			4. Finally, the x,y trajectory points are transformed from local vehicle coordinates back into map coordinates. 
 	

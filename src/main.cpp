@@ -247,24 +247,18 @@ int main() {
 			////////////////////////////////////////////////////////////////////////////////////////////////////
 
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-			
-			
-			
+
 			int prev_size = previous_path_x.size();	
-			
-			// WHY??????
+
 			if (prev_size > 0 )
 			{
 				car_s = end_path_s;
 			}
 			
-			
 			// Go through sensor fusion list, see if any other cars are in our lane, and if they are close
-			
 			bool too_close = false;
 			vector<int> buffer_cost = {0, 0, 0};
 			int current_lane = find_current_lane(car_d);
-			//cout << "current lane: " << current_lane << endl;
 			vector<int> feasible_lanes = get_feasible_lanes(lane);
 			
 			for (vector<int>::iterator fl_it = feasible_lanes.begin(); fl_it != feasible_lanes.end(); fl_it++)
@@ -277,7 +271,7 @@ int main() {
 			for(int i = 0; i < sensor_fusion.size(); i++)
 			{
 				float d = sensor_fusion[i][6];
-			//check if any other cars are in my lane or in lane(s) I may switch to (i.e. feasible lanes)
+				//check if any other cars are in my lane or in lane(s) I may switch to (i.e. feasible lanes)
 				for (vector<int>::iterator fl_it = feasible_lanes.begin(); fl_it != feasible_lanes.end(); fl_it++)
 				{
 					if(d < (2+4* *fl_it+2) && d > (2+4* *fl_it-2))
@@ -291,74 +285,57 @@ int main() {
 						//if using previous points can project s value out
 						check_car_s += ((double)prev_size*.02*check_speed);
 						double buffer = check_car_s-car_s;
-						//if another car is in front of us and close to us, then take action (i.e. slow down or change lanes)
-						//cout << (*fl_it == current_lane) <<  (check_car_s > car_s) << (buffer < 30) << (buffer > 0) << endl;
+						
+						//if another car is in front of us and close to us, then match its speed
 						if((*fl_it == lane) && (check_car_s > car_s) && (buffer < 30) )
 						{
-							//too_close = true;
 							target_speed = 2.24*check_speed;
-							//cout << "target speed: " << target_speed << " ID: " << sensor_fusion[i][0] << endl;
-							//cout << "too close: " << too_close <<  " current lane: " << current_lane << " fl_it " << *fl_it << endl;
 						}
+						
+						// if another car is in front or behind us in another lane we are considering moving into, calculate buffer cost
 						double acost = 0;
-						if(*fl_it != current_lane) // if another car is in front or behind us in another lane we are considering moving into, calculate buffer cost
+						if(*fl_it != current_lane) 
 						{
-							//Calculate buffer cost for that lane
-							// the smaller the distance (i.e. buffer), the larger the cost should be
 							if (buffer >= -7 && buffer <7)
 							{
-								//No go zone; infinite cost
+								//No-go zone; high cost
 								acost = 500;
 							}
 							else if (buffer >= 7 && buffer <30)
 							{
 								acost = .1*pow((buffer-30),2);
 							}
-						 	/* else if (buffer < -5 && buffer > -10)
-							{
-								acost = 3.6*pow((fabs(buffer)-10),2);
-							}  */
 							else
 							{
 								acost = 0;
 							}
 							buffer_cost[*fl_it] =  buffer_cost[*fl_it] + acost;
 						}
-						//cout << "too1 close: " << too_close << endl;
 					}
-					//cout << "too2 close: " << too_close << endl;
 				}
-				//cout << "too3 close: " << too_close << endl;
 			}	
-			//cout << "too4 close: " << too_close << endl;
 			
+			//Calculate inefficency_cost of current lane and this to buffer_cost vector, which captures cost of each lane
 			unsigned int ineff_cost = inefficency_cost(car_speed, 49.5);
 			buffer_cost[lane] = ineff_cost;
-			
-			
-			
+
 			cout << "Buffer Cost: ";
 			for (vector<int>::iterator fl_it = buffer_cost.begin(); fl_it != buffer_cost.end(); fl_it++)
 				{			
 				cout << setw(10) << *fl_it  << " | ";
 				}
-			//cout << endl;	
-				
 			
-
+			//Track vehicle speed target without violating acceleration limits
  			if(ref_vel > target_speed)
 			{
 				ref_vel -= .224;
-				;
-				//cout << ref_vel << endl;
-				//cout << "decrease speed" << ref_vel << endl;
 			}
 			else if(ref_vel < target_speed)
 			{
 				ref_vel += .224;
-				//cout << "increase speed" << ref_vel << endl;
 			} 
 			
+			//Verify vehicle got up to speed by obvserving inefficency_cost decay to zero. This flag is used to prevent pre-mature lane shifts. 
 			if (buffer_cost[lane] < 1)
 			{
 				uptospeed = true;
@@ -372,7 +349,8 @@ int main() {
 			vector<int> right_lanes = {1, 2};
 			
 			if (uptospeed) //don't change lanes when the vehicle is starting up from a stop at the begining of simulation
-			{
+			{	
+				// Determine the lowest cost lane
 				if (feasible_lanes == all_lanes)
 				{
 					cout << " all ";
@@ -413,48 +391,38 @@ int main() {
 					cout << "LANE CHANGE!   minlane: " << minlane << " current lane: " << lane << " buffer_cost[minlane]: " << buffer_cost[minlane] << " buffer_cost[lane]: "<< buffer_cost[lane] << " target speed: " << target_speed << endl; //" diff: " << buffer_cost[lane] - buffer_cost[minlane] << endl;
 					lane = minlane;
 					timer = 0; // reset timer 
-					
 				}
 			}
 			
 			cout << " lane: " << lane << " ref_vel: " << ref_vel  << " target speed: " << target_speed  << " buffer_cost[lane]: " << buffer_cost[lane]  << " current lane: " << lane << endl;
 			
-			
 			//////// Define coarse trajectories waypoints BEGIN
-			
-			//vector<vector<double>> ptsX;
-			//vector<vector<double>> ptsY;
-			
+
 			vector<double> ptsx;
 			vector<double> ptsy;
 		  
 			double ref_x = car_x;
 			double ref_y = car_y;
 			double ref_yaw = deg2rad(car_yaw);
-			
 
-			
-			
-			
 			ptsx.clear();
 			ptsy.clear();
 			// if previous size is almost empty, use the car as starting point	
-			//cout << "1" << endl;
-			if (prev_size < 2){
+
+			if (prev_size < 2)
+			{
 				//Use two points that make the path tangent to the car
-				cout << "2" << endl;
 				double prev_car_x = car_x - cos(car_yaw);
 				double prev_car_y = car_y - sin(car_yaw);
 				
 				ptsx.push_back(prev_car_x);
-				//cout << "3" << endl;
 				ptsx.push_back(car_x);
 				
 				ptsy.push_back(prev_car_y);
 				ptsy.push_back(car_y);
 			}			
-			else {
-				//cout << "3" << endl;
+			else 
+			{
 				//Redefine reference state as previous path end point
 				ref_x = previous_path_x[prev_size-1];
 				ref_y = previous_path_y[prev_size-1];
@@ -470,7 +438,6 @@ int main() {
 				ptsy.push_back(ref_y_prev);
 				ptsy.push_back(ref_y);
 			}			
-			//cout << "4" << endl;
 			//In Frenet add evenly 30m spaced points ahead of starting reference
 			vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
 			vector<double> next_wp1 = getXY(car_s+60, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -484,20 +451,6 @@ int main() {
 			ptsy.push_back(next_wp1[1]);
 			ptsy.push_back(next_wp2[1]);
 			
-			//ptsX.push_back(ptsx);
-			//ptsY.push_back(ptsy);
-			
-			//cout << "5" << endl;
-			//cout << ptsX.size() << endl;
-			//cout << ptsX[0].size() << endl;
-			//cout << ptsX[1].size() << endl;
-			//cout << ptsX[2].size() << endl;
-			//cout << ptsX[2][1] << endl;
-			//vector<double> ptsxx = ptsX;
-			//vector<double> ptsyy = ptsY;
-			//cout << "6" << endl;
-			//cout << ptsxx.size() << " " << ptsyy.size() << endl;
-			
 			for (int i =0; i < ptsx.size(); i++)
 			{
 				//shift car refrence angle to 0 degrees\
@@ -508,22 +461,22 @@ int main() {
 				ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
 				ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
 			}
-			//cout << "7" << endl;
+
 			//Define coarse trajectory waypoints END, Fit waypoints to spline BEGIN
 			
 			// create a spline
 			tk::spline spl;
-			//cout << "7.1" << endl;
+		
 			// set(x, y) points to the spline
 			spl.set_points(ptsx, ptsy);
-			//cout << "8" << endl;
+
 			//Start with all of the previous path points from last time
 			for (int i = 0; i < previous_path_x.size(); i++)
 			{
 				next_x_vals.push_back(previous_path_x[i]);
 				next_y_vals.push_back(previous_path_y[i]);
 			}
-			//cout << "9" << endl;
+
 			// Calculate how to break up spline points so that we travel at our desired reference velocity
 			double target_x = 30.0;
 			double target_y = spl(target_x);
