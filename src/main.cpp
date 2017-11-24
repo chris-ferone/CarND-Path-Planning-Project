@@ -265,7 +265,12 @@ int main() {
 			vector<int> buffer_cost = {0, 0, 0};
 			int current_lane = find_current_lane(car_d);
 			//cout << "current lane: " << current_lane << endl;
-			vector<int> feasible_lanes = get_feasible_lanes(current_lane);
+			vector<int> feasible_lanes = get_feasible_lanes(lane);
+			
+			for (vector<int>::iterator fl_it = feasible_lanes.begin(); fl_it != feasible_lanes.end(); fl_it++)
+				{
+				cout << *fl_it  << " | ";
+				}
 			double follow_speed = 0;
 			double target_speed = 49.5;
 			
@@ -288,18 +293,36 @@ int main() {
 						double buffer = check_car_s-car_s;
 						//if another car is in front of us and close to us, then take action (i.e. slow down or change lanes)
 						//cout << (*fl_it == current_lane) <<  (check_car_s > car_s) << (buffer < 30) << (buffer > 0) << endl;
-						if((*fl_it == current_lane) && (check_car_s > car_s) && (buffer < 30) )
+						if((*fl_it == lane) && (check_car_s > car_s) && (buffer < 30) )
 						{
 							//too_close = true;
 							target_speed = 2.24*check_speed;
 							//cout << "target speed: " << target_speed << " ID: " << sensor_fusion[i][0] << endl;
 							//cout << "too close: " << too_close <<  " current lane: " << current_lane << " fl_it " << *fl_it << endl;
 						}
-						if(*fl_it != current_lane && fabs(buffer) < 30) // if another car is in front or behind us in another lane we are considering moving into, calculate buffer cost
+						double acost = 0;
+						if(*fl_it != current_lane) // if another car is in front or behind us in another lane we are considering moving into, calculate buffer cost
 						{
 							//Calculate buffer cost for that lane
 							// the smaller the distance (i.e. buffer), the larger the cost should be
-							buffer_cost[*fl_it] =  buffer_cost[*fl_it] + .1*pow((fabs(buffer)-30),2);
+							if (buffer >= -7 && buffer <7)
+							{
+								//No go zone; infinite cost
+								acost = 500;
+							}
+							else if (buffer >= 7 && buffer <30)
+							{
+								acost = .1*pow((buffer-30),2);
+							}
+						 	/* else if (buffer < -5 && buffer > -10)
+							{
+								acost = 3.6*pow((fabs(buffer)-10),2);
+							}  */
+							else
+							{
+								acost = 0;
+							}
+							buffer_cost[*fl_it] =  buffer_cost[*fl_it] + acost;
 						}
 						//cout << "too1 close: " << too_close << endl;
 					}
@@ -343,22 +366,58 @@ int main() {
 			// find lowest cost lane
 			
 			timer = timer + .02;
+			int minlane = 99;
+			vector<int> all_lanes = {0, 1, 2};
+			vector<int> left_lanes = {0, 1};
+			vector<int> right_lanes = {1, 2};
 			
 			if (uptospeed) //don't change lanes when the vehicle is starting up from a stop at the begining of simulation
 			{
-				
-				int minlane = min_element(buffer_cost.begin(), buffer_cost.end()) - buffer_cost.begin();
-				// The new lane must cost signifncatly less, and at least some time must have passed since last lane change (to avoid unnecessary lanes changes). 
-				if ( (find(feasible_lanes.begin(), feasible_lanes.end(), minlane) != feasible_lanes.end()) && (buffer_cost[lane] - buffer_cost[minlane] > 20) && timer > 3)
+				if (feasible_lanes == all_lanes)
 				{
-					cout << "LANE CHANGE!   minlane: " << minlane << " current lane: " << lane << " buffer_cost[minlane]: " << buffer_cost[minlane] << " buffer_cost[lane]: "<< buffer_cost[lane] << " diff: " << buffer_cost[lane] - buffer_cost[minlane] << endl;
+					cout << " all ";
+					minlane = min_element(buffer_cost.begin(), buffer_cost.end()) - buffer_cost.begin();
+				}
+				else if (feasible_lanes == left_lanes)
+				{	
+					cout << " left ";
+					if (buffer_cost[0] < buffer_cost[1])
+					{
+						minlane = 0;
+					}
+					else
+					{
+						minlane = 1;
+					}
+				}
+				else if (feasible_lanes == right_lanes)
+				{	
+					cout << " left ";
+					if (buffer_cost[1] < buffer_cost[2])
+					{
+						minlane = 1;
+					}
+					else
+					{
+						minlane = 2;
+					}
+				}
+				else
+				{
+					cout << "ERROR" << endl;
+				}
+				cout << " minlane: " << minlane;
+				// The new lane must cost signifncatly less, and at least some time must have passed since last lane change (to avoid unnecessary lanes changes). 
+				if ( (minlane != 99) && (buffer_cost[lane] - buffer_cost[minlane] > 20) && timer > 3)
+				{
+					cout << "LANE CHANGE!   minlane: " << minlane << " current lane: " << lane << " buffer_cost[minlane]: " << buffer_cost[minlane] << " buffer_cost[lane]: "<< buffer_cost[lane] << " target speed: " << target_speed << endl; //" diff: " << buffer_cost[lane] - buffer_cost[minlane] << endl;
 					lane = minlane;
 					timer = 0; // reset timer 
 					
 				}
 			}
 			
-			cout << " lane: " << lane << " ref_vel: " << ref_vel  << endl;
+			cout << " lane: " << lane << " ref_vel: " << ref_vel  << " target speed: " << target_speed  << " buffer_cost[lane]: " << buffer_cost[lane]  << " current lane: " << lane << endl;
 			
 			
 			//////// Define coarse trajectories waypoints BEGIN

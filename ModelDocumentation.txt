@@ -1,0 +1,13 @@
+There is a reflection on how to generate paths. The code model for generating paths is described in detail. 
+
+The code contained within the repository generates a trajectory for the vehicle to follow. The trajectory is generated according to the following steps:
+	1. A set of feasible lanes are determined. Feasible lanes are lanes the vehicle might currently occupy or lanes the vehicle might want to move into. For example, 
+	if the vehicle is the middle lanes, all lanes belong to the set of the feasible lanes. if the vehile is in the far right lane, then it can only stay in that lane 
+	or shift into the middle lane. Thus, the feasible lanes would be the middle and far right lanes only. 
+	2. Next, we iterate over the list of vehicles reported by the sensor fusion module that are in any feasible lanes. If a vehicle is in the ego vehicle lane, 
+	ahead of the ego vehicle, and within a certain distance of the ego vehicle, then that vehicle's speed becomes the ego vehicle's speed target. This prevents the 
+	ego vehicle from rear-ending this vehicle. 
+	3. If any other vehicles are in feasible lanes, but not in the current ego vehicle lane, then their buffer cost is caclulated. Buffer cost is a cost assosicated with
+	moving into another lane. If another vehicle is in close longitudinal (s) proximty to the ego vehicle, then its cost will be high. As the vehicle moves farther in front
+	or behind of the ego vehicle, its cost decays to zero, represeting a clear lane to shift into. 
+	

@@ -78,7 +78,7 @@ unsigned int inefficency_cost(double average_speed, double target_speed)
 	// this cost is only applied to current lane trajectory
 	double diff = target_speed - average_speed;
 	double pct = float(diff) / target_speed;
-	return pct * 100;
+	return pct * 100*1.5;
 }
 
 /*
